@@ -1,0 +1,557 @@
+Attribute VB_Name = "AV_Format"
+Option Explicit
+
+' ======================================================
+' AV_Format v2.6
+' Formatting, feedback routing, and utilities
+' KEY FIX: WriteSystemTagToDropColumn now accepts header names or column letters
+' ======================================================
+
+Private Const FormatKeyColumn As String = "Formatting Key"
+Private Const AutoFormatColumn As String = "Autoformatting"
+Private Const GlobalFormatTableName As String = "AutoFormatOnFullValidation"
+Private Const PriorityColumn As String = "KeyFlagPriority"
+Private Const ConfigSheet As String = "Config"
+Private Const ReviewFlagsTableName As String = "ReviewRefColumnTable"
+Private Const RevStatusColName As String = "ReviewStatusColumn"
+Private Const AutoRevStatusColName As String = "AutoReviewColumnLetter"
+Private Const HumanSetStatus As String = "HumanSetRevStatus"
+Public Const DebugON As Boolean = False
+
+Public Const SYSTEM_TAG_START As String = "[[SYS_TAG"
+Public Const SYSTEM_TAG_END As String = "]]"
+Public Const SYSTEM_COMMENT_TAG As String = "[[SYS_COMMENT]]"
+Private Const FALLBACKFORMAT As String = "Default"
+
+
+' ======================================================
+' FORMAT MAP LOADING
+' ======================================================
+
+Public Function LoadFormatMap(wsConfig As Worksheet) As Object
+    Dim tbl As ListObject
+    Dim dict As Object
+    Dim r As ListRow
+    Dim key As String
+    Dim fmt As clsCellFormat
+    Dim srcCell As Range
+    Dim colKey As Long, colFormat As Long, colPriority As Long
+    Dim priorityVal As Long
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    On Error Resume Next
+    Set tbl = wsConfig.ListObjects(GlobalFormatTableName)
+    On Error GoTo 0
+    
+    If tbl Is Nothing Then
+        Debug.Print "Table '" & GlobalFormatTableName & "' not found on " & wsConfig.Name
+        Set LoadFormatMap = dict
+        Exit Function
+    End If
+    
+    colKey = tbl.ListColumns(FormatKeyColumn).Index
+    colFormat = tbl.ListColumns(AutoFormatColumn).Index
+    colPriority = tbl.ListColumns(PriorityColumn).Index
+    
+    For Each r In tbl.ListRows
+        key = Trim(r.Range.Cells(1, colKey).Value)
+        Set srcCell = r.Range.Cells(1, colFormat)
+        
+        If IsNumeric(r.Range.Cells(1, colPriority).Value) Then
+            priorityVal = CLng(r.Range.Cells(1, colPriority).Value)
+        Else
+            priorityVal = 0
+        End If
+
+        If Len(key) > 0 Then
+            Set fmt = getCellFormat(srcCell)
+            fmt.Priority = priorityVal
+            Set dict(key) = fmt
+        End If
+    Next r
+    
+    Set LoadFormatMap = dict
+End Function
+
+
+Public Function DefaultFormatMap() As Object
+    Dim wsConfig As Worksheet
+    Set wsConfig = ThisWorkbook.Worksheets("Config")
+    Dim FormatMap As Object
+    
+    Set FormatMap = LoadFormatMap(wsConfig)
+    
+    If FormatMap Is Nothing Then
+        Debug.Print "Error loading the formatting map"
+        Exit Function
+    End If
+    
+    Set DefaultFormatMap = FormatMap
+End Function
+
+
+' ======================================================
+' FORMAT KEY CELL (ROW PRIORITY FORMATTING)
+' ======================================================
+
+Public Sub FormatKeyCell(rowRange As Range, FormatMap As Object)
+    Dim r As Range
+    If rowRange.Rows.Count > 1 Then
+        For Each r In rowRange.Rows
+            FormatKeyCell r, FormatMap
+        Next r
+        Exit Sub
+    End If
+    
+    Dim cell As Range
+    Dim key As String
+    Dim fmtInfo As clsCellFormat
+    Dim currentPriority As Long
+    Dim highestPriority As Long
+    Dim highestKey As String
+    Dim KeyCell As Range
+    Dim wsConfig As Worksheet
+    
+    Set wsConfig = ThisWorkbook.Worksheets(ConfigSheet)
+    
+    ' For table-based validation, use first column as key
+    Dim tbl As ListObject
+    On Error Resume Next
+    Set tbl = rowRange.ListObject
+    On Error GoTo 0
+    
+    If Not tbl Is Nothing Then
+        Set KeyCell = rowRange.Cells(1, 1)
+    Else
+        ' Legacy fallback
+        Dim colLetter As String
+        colLetter = UCase(wsConfig.Range("B5").Value)
+        Set KeyCell = rowRange.Worksheet.Range(colLetter & rowRange.Row)
+    End If
+    
+    highestPriority = -1
+    highestKey = ""
+    
+    For Each cell In rowRange.Cells
+        key = getFormatType(cell, FormatMap)
+        
+        If Len(key) > 0 Then
+            Set fmtInfo = FormatMap(key)
+            currentPriority = fmtInfo.Priority
+            
+            If currentPriority > highestPriority Then
+                highestPriority = currentPriority
+                highestKey = key
+            End If
+        End If
+    Next cell
+    
+    If Len(highestKey) > 0 Then
+        If highestPriority = 2 Then
+            Call SetReviewStatus(True, rowRange, True)
+        ElseIf highestPriority = 3 Then
+            Call SetReviewStatus(True, rowRange, False)
+        Else
+            Call SetReviewStatus(False, rowRange, False)
+        End If
+            
+        Call setFormat(KeyCell, highestKey, FormatMap)
+    End If
+End Sub
+
+
+Private Sub SetReviewStatus(ReviewRequired As Boolean, rowRange As Range, Optional AutoCorrected As Boolean = False)
+    Dim reviewStatus As revStatusRef
+    Dim tbl As ListObject
+    Dim wsConfig As Worksheet
+    Dim rowNum As Long
+
+    Set reviewStatus = New revStatusRef
+    Set wsConfig = ThisWorkbook.Worksheets(ConfigSheet)
+
+    On Error Resume Next
+    Set tbl = wsConfig.ListObjects(ReviewFlagsTableName)
+    On Error GoTo 0
+
+    If tbl Is Nothing Then
+        Exit Sub
+    End If
+
+    rowNum = rowRange.Row
+
+    Set reviewStatus.RevStatusCol = GetCellFromTableColumnHeader(tbl, rowRange, RevStatusColName)
+    Set reviewStatus.AutoReviewDropCol = GetCellFromTableColumnHeader(tbl, rowRange, AutoRevStatusColName)
+    Set reviewStatus.HumanSetStatusCol = GetCellFromTableColumnHeader(tbl, rowRange, HumanSetStatus)
+
+    If ReviewRequired Then
+        If AutoCorrected Then
+            reviewStatus.AutoReviewDropCol.Value = "Auto Corrected"
+        Else
+            reviewStatus.AutoReviewDropCol.Value = "Error"
+        End If
+    Else
+        reviewStatus.AutoReviewDropCol.Value = "No Errors Found"
+    End If
+End Sub
+' ======================================================
+' CELL FORMAT CAPTURE & APPLICATION
+' ======================================================
+
+Private Function getCellFormat(cell As Range) As clsCellFormat
+    Dim f As New clsCellFormat
+    
+    With cell
+        f.InteriorColor = .Interior.Color
+        f.FontColor = .Font.Color
+        f.Bold = .Font.Bold
+        f.FontName = .Font.Name
+        f.FontSize = .Font.Size
+        f.NumberFormat = .NumberFormat
+        
+        With .Borders(xlEdgeTop)
+            f.BorderTopColor = .Color
+            f.BorderTopLineStyle = .LineStyle
+        End With
+        With .Borders(xlEdgeBottom)
+            f.BorderBottomColor = .Color
+            f.BorderBottomLineStyle = .LineStyle
+        End With
+        With .Borders(xlEdgeLeft)
+            f.BorderLeftColor = .Color
+            f.BorderLeftLineStyle = .LineStyle
+        End With
+        With .Borders(xlEdgeRight)
+            f.BorderRightColor = .Color
+            f.BorderRightLineStyle = .LineStyle
+        End With
+    End With
+    
+    Set getCellFormat = f
+End Function
+
+
+Public Sub setFormat(TargetCell As Range, FormatType As String, FormatMap As Object)
+    Dim fmt As clsCellFormat
+    
+    If FormatMap.Exists(FormatType) Then
+        Set fmt = FormatMap(FormatType)
+        ApplyCellFormatting TargetCell, fmt
+    Else
+        AV_Core.DebugMessage "FormatMap type: '" & FormatType & "' could not be found", "setFormat"
+    End If
+End Sub
+
+
+Public Function getFormatType(TargetCell As Range, FormatMap As Object) As String
+    Dim cellFormat As clsCellFormat
+    Dim key As Variant
+    Dim fmt As clsCellFormat
+    
+    Set cellFormat = getCellFormat(TargetCell)
+    
+    For Each key In FormatMap.Keys
+        Set fmt = FormatMap(key)
+        
+        If FormatsAreEqual(fmt, cellFormat) Then
+            getFormatType = key
+            Exit Function
+        End If
+    Next key
+    
+    getFormatType = vbNullString
+End Function
+
+
+Private Sub ApplyCellFormatting(TargetCell As Range, fmt As clsCellFormat)
+    If fmt Is Nothing Then Exit Sub
+    
+    With TargetCell
+        .Interior.Color = fmt.InteriorColor
+        .Font.Color = fmt.FontColor
+        .Font.Bold = fmt.Bold
+        .Font.Name = fmt.FontName
+        .Font.Size = fmt.FontSize
+        .NumberFormat = fmt.NumberFormat
+        
+        With .Borders(xlEdgeTop)
+            .Color = fmt.BorderTopColor
+            .LineStyle = fmt.BorderTopLineStyle
+        End With
+        With .Borders(xlEdgeBottom)
+            .Color = fmt.BorderBottomColor
+            .LineStyle = fmt.BorderBottomLineStyle
+        End With
+        With .Borders(xlEdgeLeft)
+            .Color = fmt.BorderLeftColor
+            .LineStyle = fmt.BorderLeftLineStyle
+        End With
+        With .Borders(xlEdgeRight)
+            .Color = fmt.BorderRightColor
+            .LineStyle = fmt.BorderRightLineStyle
+        End With
+    End With
+End Sub
+
+
+Private Function FormatsAreEqual(fmt1 As clsCellFormat, fmt2 As clsCellFormat) As Boolean
+    If fmt1 Is Nothing Or fmt2 Is Nothing Then Exit Function
+    
+    FormatsAreEqual = _
+        (fmt1.InteriorColor = fmt2.InteriorColor) And _
+        (fmt1.FontColor = fmt2.FontColor) And _
+        (fmt1.Bold = fmt2.Bold) And _
+        (fmt1.FontName = fmt2.FontName) And _
+        (fmt1.FontSize = fmt2.FontSize) And _
+        (fmt1.NumberFormat = fmt2.NumberFormat) And _
+        (fmt1.BorderTopColor = fmt2.BorderTopColor) And _
+        (fmt1.BorderTopLineStyle = fmt2.BorderTopLineStyle) And _
+        (fmt1.BorderBottomColor = fmt2.BorderBottomColor) And _
+        (fmt1.BorderBottomLineStyle = fmt2.BorderBottomLineStyle) And _
+        (fmt1.BorderLeftColor = fmt2.BorderLeftColor) And _
+        (fmt1.BorderLeftLineStyle = fmt2.BorderLeftLineStyle) And _
+        (fmt1.BorderRightColor = fmt2.BorderRightColor) And _
+        (fmt1.BorderRightLineStyle = fmt2.BorderRightLineStyle)
+End Function
+' ======================================================
+' VALIDATION FEEDBACK (CENTRAL HANDLER)
+' ======================================================
+
+Public Sub AddValidationFeedback(ByVal devFunctionName As String, _
+                                 ByVal wsTarget As Worksheet, _
+                                 ByVal targetRow As Long, _
+                                 ByVal messageText As String, _
+                                 Optional ByVal FormatType As String = "Default", _
+                                 Optional ByVal english As Boolean = True, _
+                                 Optional FormatMap As Object, _
+                                 Optional AutoValMap As Object)
+
+    Dim map As Object
+    Dim dropColHeader As String
+    Dim prefixText As String
+    Dim fullMessage As String
+    Dim TargetColHeader As String
+    
+    devFunctionName = "Validate_Column_" & devFunctionName
+    
+    If FormatMap Is Nothing Then
+        Set FormatMap = DefaultFormatMap()
+        If FormatMap Is Nothing Then
+            Debug.Print "Error loading the formatting map"
+            Exit Sub
+        End If
+    End If
+    
+    If AutoValMap Is Nothing Then
+        Set AutoValMap = AV_Core.GetAutoValidationMap()
+        If AutoValMap Is Nothing Then
+            Debug.Print "Error loading the autovalidation mapping"
+            Exit Sub
+        End If
+    End If
+    
+    If Not AutoValMap.Exists(devFunctionName) Then
+        Debug.Print "[AddValidationFeedback] Function '" & devFunctionName & "' not found in mapping."
+        Exit Sub
+    End If
+
+    Set map = AutoValMap(devFunctionName)
+    dropColHeader = AV_Core.SafeTrim(map("DropColHeader"))
+    TargetColHeader = AV_Core.SafeTrim(map("ColumnRef"))
+    
+    If english Then
+        prefixText = AV_Core.SafeTrim(map("PrefixEN"))
+    Else
+        prefixText = AV_Core.SafeTrim(map("PrefixFR"))
+    End If
+
+    If Len(prefixText) > 0 Then
+        fullMessage = prefixText & " " & messageText
+    Else
+        fullMessage = messageText
+    End If
+
+    ' Use current target table for header-based lookup
+    WriteSystemTagToDropColumn AV_Engine.CurrentTargetTable, dropColHeader, targetRow, TargetColHeader, fullMessage, FormatType, FormatMap
+End Sub
+
+
+' ======================================================
+' SYSTEM TAG MESSAGE UTILITIES
+' KEY FIX: Now accepts ListObject and header names instead of worksheet and column letters
+' ======================================================
+
+Public Sub WriteSystemTagToDropColumn(TargetTable As Object, _
+                                      dropColHeader As String, _
+                                      rowNum As Long, _
+                                      sourceColHeader As String, _
+                                      tagText As String, _
+                                      Optional FormatType As String = "Default", _
+                                      Optional FormatMap As Object)
+
+    On Error GoTo ErrHandler
+    Dim cell As Range
+    Dim tagId As String
+    Dim fullMsg As String
+    Dim existingText As String
+    Dim cleanedText As String
+    Dim TrgCell As Range
+    Dim tbl As ListObject
+
+    If TargetTable Is Nothing Then Exit Sub
+    If Len(dropColHeader) = 0 Or rowNum <= 0 Then Exit Sub
+    
+    ' Handle both ListObject and Worksheet inputs
+    If TypeName(TargetTable) = "ListObject" Then
+        Set tbl = TargetTable
+    Else
+        Exit Sub
+    End If
+
+    ' Get source cell using header-based lookup
+    Set TrgCell = AV_Core.GetCellByHeader(tbl, rowNum, sourceColHeader)
+    
+    ' Get drop column cell using header-based lookup
+    Set cell = AV_Core.GetCellByHeader(tbl, rowNum, dropColHeader)
+    
+    If cell Is Nothing Then Exit Sub
+
+    tagId = sourceColHeader
+
+    Application.EnableEvents = False
+
+    Call ClearSystemTagFromString_KeepOthers(cell, tagId)
+
+    If FormatType = "Default" Then
+        If Not TrgCell Is Nothing Then
+            If Not FormatMap Is Nothing Then
+                setFormat TrgCell, "Default", FormatMap
+            Else
+                setFormat TrgCell, "Default", DefaultFormatMap
+            End If
+        End If
+        cell.Value = Trim(cell.Value)
+        Application.EnableEvents = True
+        Exit Sub
+    End If
+
+    fullMsg = SYSTEM_TAG_START & " " & tagId & ": " & tagText & " " & SYSTEM_TAG_END
+
+    If FormatMap Is Nothing Then
+        Set FormatMap = DefaultFormatMap
+    End If
+
+    If Not TrgCell Is Nothing Then
+        setFormat TrgCell, FormatType, FormatMap
+    End If
+
+    existingText = Trim(Replace(cell.Value, vbCr, ""))
+    Do While Right(existingText, 1) = vbLf
+        existingText = Left(existingText, Len(existingText) - 1)
+    Loop
+
+    If existingText <> "" Then
+        cleanedText = existingText & vbLf & fullMsg
+    Else
+        cleanedText = fullMsg
+    End If
+
+    cell.Value = cleanedText
+
+CleanExit:
+    Application.EnableEvents = True
+    Exit Sub
+
+ErrHandler:
+    Debug.Print "WriteSystemTagToDropColumn ERROR: " & Err.Number & " - " & Err.Description
+    Resume CleanExit
+End Sub
+
+
+Public Sub ClearSystemTagFromString_KeepOthers(TargetCell As Range, tagId As String)
+    Dim txt As String
+    Dim sPos As Long, ePos As Long, subLen As Long
+    Dim tagStart As String, tagEnd As String
+    Dim chunk As String
+    Dim attempts As Integer
+
+    If TargetCell Is Nothing Then Exit Sub
+    If Len(tagId) = 0 Then Exit Sub
+
+    tagStart = SYSTEM_TAG_START & " " & tagId & ":"
+    tagEnd = SYSTEM_TAG_END
+    txt = CStr(TargetCell.Value)
+
+    If Len(txt) = 0 Then Exit Sub
+
+    Application.EnableEvents = False
+
+    attempts = 0
+
+    Do
+        sPos = InStr(1, txt, tagStart, vbTextCompare)
+        If sPos = 0 Then Exit Do
+
+        ePos = InStr(sPos, txt, tagEnd, vbTextCompare)
+        If ePos = 0 Then
+            txt = Left(txt, sPos - 1) & Mid(txt, sPos + Len(tagStart))
+        Else
+            subLen = ePos - sPos + Len(tagEnd)
+            chunk = Mid(txt, sPos, subLen)
+            txt = Replace(txt, chunk, "", , 1, vbTextCompare)
+        End If
+
+        attempts = attempts + 1
+        If attempts > 20 Then Exit Do
+    Loop
+
+    txt = Trim(Replace(txt, vbCr, ""))
+    Do While InStr(txt, vbLf & vbLf) > 0
+        txt = Replace(txt, vbLf & vbLf, vbLf)
+    Loop
+    If Left(txt, 1) = vbLf Then txt = Mid(txt, 2)
+    If Right(txt, 1) = vbLf Then txt = Left(txt, Len(txt) - 1)
+
+    TargetCell.Value = txt
+
+    Application.EnableEvents = True
+End Sub
+' ======================================================
+' UTILITY HELPERS
+' ======================================================
+
+Public Function GetCellFromTableColumnHeader(tbl As ListObject, rowRange As Range, ColumnHeader As String) As Range
+    Dim colLetter As String
+    Dim colIndex As Long
+    Dim headerValue As String
+
+    On Error Resume Next
+    colIndex = tbl.ListColumns(ColumnHeader).Index
+    On Error GoTo 0
+    
+    If colIndex = 0 Then
+        Exit Function
+    End If
+
+    headerValue = Trim(CStr(tbl.DataBodyRange.Cells(1, colIndex).Value))
+    
+    If Len(headerValue) = 0 Then
+        Exit Function
+    End If
+    
+    Set GetCellFromTableColumnHeader = rowRange.Worksheet.Range(headerValue & rowRange.Row)
+End Function
+
+
+Public Function GetCellByLetter(ws As Worksheet, colLetter As String, rowNum As Long) As Range
+    Dim colNum As Long
+    On Error GoTo ErrHandler
+    
+    colNum = Range(colLetter & "1").Column
+    Set GetCellByLetter = ws.Cells(rowNum, colNum)
+    Exit Function
+
+ErrHandler:
+    Debug.Print "Invalid column letter: " & colLetter
+    Set GetCellByLetter = Nothing
+End Function

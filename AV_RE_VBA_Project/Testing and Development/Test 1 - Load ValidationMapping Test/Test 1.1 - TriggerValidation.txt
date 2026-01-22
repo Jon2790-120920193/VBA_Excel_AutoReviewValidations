@@ -1,0 +1,24 @@
+Error Tracing (Development): Test 1.1
+Public Sub TriggerValidation()
+    ' Simple trigger - uses defaults (English, no specific sheet)
+    AV_Engine.RunFullValidation
+    
+    'Will wait for testing to be completed first to run.
+End Sub
+
+Stack Trace - Manual Investigation by Development.
+Critical Error: Error #0? Full Vadliation Tracker (Form) shows the following,Initializing Full Validation Master v2.1 ...Step 2... Enabled targets: 3, -REP2DSMDraft_Buildings (Mode: Both), .....Timeout: 10000 seconds, Step 3: Loading validation mappings... CRITICAL ERROR in RunFullValidationMaster, Error #0: Source: (End of Logs in User Form ListBox). Debugging (step by step, shows there's some error that results from the call of GetAutoValidationMap, at [ValidationTrackerForm] ValidationTrackerForm initialized. I think it might be the sequence of     For Each r In tbl.ListRows
+        devFunc = "Validate_Column_" & Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_DEV_FUNC_NAMES).Index).Value))
+
+        Set item = CreateObject("Scripting.Dictionary")
+        item("DropColHeader") = Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_DROP_COLUMN).Index).Value))
+        item("PrefixEN") = Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_PREFIX_EN).Index).Value))
+        item("PrefixFR") = Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_PREFIX_FR).Index).Value))
+        item("ColumnRef") = Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_REVIEW_COLUMN_HEADER).Index).Value))
+        item("AutoValidate") = (LCase(Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_AUTO_VALIDATE).Index).Value))) = "true")
+        item("RuleTable") = Trim(CStr(r.Range.Cells(1, tbl.ListColumns(AV_Constants.COL_AVCPM_RULE_TABLE).Index).Value))
+
+        If devFunc <> "Validate_Column_" Then
+            dict(devFunc) = item
+        End If
+    Next r relating to Dev Function Names    Drop in Column    Prefix to message    (FR) Prefix to message    RuleTableName    AutoValidate    ReviewSheet Column Header GIWQuantity    National Review Comments    Gender Includive Washrooms - Quantity    Toilettes Inclusives - Inclus    GIWValidationTable    TRUE    Gender Inclusive Washrooms - Quantity GIWIncluded    National Review Comments    Gender Inclusive Washrooms - Included    Toilettes Inclusives - Quantité    GIWValidationTable    TRUE    Gender Inclusive Washrooms - Included Electricity    National Review Comments    Electricity    Électricité    ElectricityPairValidation    TRUE    Electricity Electricity_Metered    National Review Comments    Electricity Metered    Électricité Mesurée    ElectricityPairValidation    TRUE    Electricity Metered Plumbing    National Review Comments    Plumbing    Plomberie    PlumbingPairValidation    TRUE    Plumbing Water_Metered    National Review Comments    Water Metered    Compteur d'eau    PlumbingPairValidation    TRUE    Water Metered Heat_Source    National Review Comments    Heat Source    Source de chaleur    HeatSourcePairValidation    TRUE    Heat Source Heat_Metered    National Review Comments    Heat Metered    Compteur de Chaleur    HeatSourcePairValidation    TRUE     Heat Metered Construction_Date    National Review Comments    Construction Date    Date de construction        TRUE    Construction Date ,  essentially, the If devFunc <> "Validate_Column_" is returning True so dict(devFunc) = item ->  where devFunc =  "Validate_Column_GIWQuantity" on the first pass.  Immediately after, it triggers ErrHandler in RunFullValidationMaster which results in the CRITICAL ERROR # 0.

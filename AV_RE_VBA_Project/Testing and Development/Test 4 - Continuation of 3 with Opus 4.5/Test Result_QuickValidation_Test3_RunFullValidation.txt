@@ -1,0 +1,93 @@
+
+==========================================
+TEST 3 - QUICK VALIDATION (SMALL SAMPLE)
+==========================================
+
+Temporarily validating only 10 rows...
+
+
+==========================================
+TEST 3 - RUNNING FULL VALIDATION
+==========================================
+
+Starting validation at 20:56:17
+Watch ValidationTrackerForm for progress...
+
+---[VALIDATION OUTPUT BELOW]---
+
+[ValidationTrackerForm] ValidationTrackerForm initialized
+[DEBUG] AV_UI :: ValidationTrackerForm shown
+[DEBUG] AV_Core :: Table found: AutoValidationCommentPrefixMappingTable (9 rows)
+[DEBUG] AV_Core :: Row 1 Processing: Validate_Column_GIWQuantity
+[DEBUG] AV_Core :: Row 2 Processing: Validate_Column_GIWIncluded
+[DEBUG] AV_Core :: Row 3 Processing: Validate_Column_Electricity
+[DEBUG] AV_Core :: Row 4 Processing: Validate_Column_Electricity_Metered
+[DEBUG] AV_Core :: Row 5 Processing: Validate_Column_Plumbing
+[DEBUG] AV_Core :: Row 6 Processing: Validate_Column_Water_Metered
+[DEBUG] AV_Core :: Row 7 Processing: Validate_Column_Heat_Source
+[DEBUG] AV_Core :: Row 8 Processing: Validate_Column_Heat_Metered
+[DEBUG] AV_Core :: Row 9 Processing: Validate_Column_Construction_Date
+[DEBUG] AV_Core :: Success: 9 | Skipped: 0
+[DEBUG] AV_UI :: AutoValidation Init = True
+[DEBUG] AV_Engine :: Number of rows with keys: 2
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Gender Inclusive Washrooms - Quantity' not found in table for Validate_Column_GIWQuantity
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Gender Inclusive Washrooms - Included' not found in table for Validate_Column_GIWIncluded
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Electricity' not found in table for Validate_Column_Electricity
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Electricity Metered' not found in table for Validate_Column_Electricity_Metered
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Plumbing' not found in table for Validate_Column_Plumbing
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Water Metered' not found in table for Validate_Column_Water_Metered
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Heat Source' not found in table for Validate_Column_Heat_Source
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Column 'Heat Metered' not found in table REP2DSMDraft_Buildings
+[DEBUG] AV_Engine :: WARNING: Column 'Heat Metered' not found in table for Validate_Column_Heat_Metered
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 11 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Construction Date' not found in table for Validate_Column_Construction_Date
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Gender Inclusive Washrooms - Quantity' not found in table for Validate_Column_GIWQuantity
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Gender Inclusive Washrooms - Included' not found in table for Validate_Column_GIWIncluded
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Electricity' not found in table for Validate_Column_Electricity
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Electricity Metered' not found in table for Validate_Column_Electricity_Metered
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Plumbing' not found in table for Validate_Column_Plumbing
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Water Metered' not found in table for Validate_Column_Water_Metered
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Heat Source' not found in table for Validate_Column_Heat_Source
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Column 'Heat Metered' not found in table REP2DSMDraft_Buildings
+[DEBUG] AV_Engine :: WARNING: Column 'Heat Metered' not found in table for Validate_Column_Heat_Metered
+[DEBUG] AV_DataAccess :: GetCellFromTableHeader: Row 15 is outside table range (16-2009)
+[DEBUG] AV_Engine :: WARNING: Column 'Construction Date' not found in table for Validate_Column_Construction_Date
+[DEBUG] AV_UI :: Advanced Validation Complete = True
+[DEBUG] AV_Engine :: Starting RunAutoCheckDataValidation() pass.
+[DEBUG] AV_Engine :: Starting validation on 2 rows.
+[DEBUG] AV_Engine :: Progress: 2 / 2
+[DEBUG] AV_Engine :: RunAutoCheckDataValidation completed.
+[DEBUG] AV_UI :: Legacy Menu Validation Complete = True
+[DEBUG] AV_Engine :: RunAutoCheckDataValidation() completed.
+[DEBUG] AV_Engine :: RunFullValidationMaster completed at 1/19/2026 8:56:17 PM.
+
+---[VALIDATION OUTPUT ABOVE]---
+
+Validation completed successfully
+Elapsed time: 0.21 seconds
+
+==========================================
+TEST 3 COMPLETE
+
+NEXT STEPS:
+1. Check ValidationTrackerForm for completion status
+2. Review target sheet for validation results
+3. Verify error/autocorrect formatting applied
+4. Check drop columns for validation messages
+==========================================
+
+Row count restored to: 3000

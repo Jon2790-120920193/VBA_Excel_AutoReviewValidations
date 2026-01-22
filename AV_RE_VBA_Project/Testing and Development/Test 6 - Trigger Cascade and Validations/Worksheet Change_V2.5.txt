@@ -1,0 +1,68 @@
+' ======================================================
+' WORKSHEET_CHANGE HANDLER TEMPLATE
+' Add this check at the TOP of your Worksheet_Change event
+' ======================================================
+'
+' This code should be added to the worksheet module where
+' validation triggers occur (e.g., "Tab - Onglet 1")
+'
+' ======================================================
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    ' ==========================================
+    ' CHECK 1: Skip if bulk validation is running
+    ' This prevents cascade of events during RunFullValidationMaster
+    ' ==========================================
+    If AV_Core.BulkValidationInProgress Then
+        ' Bulk validation in progress - skip trigger validation
+        Exit Sub
+    End If
+    
+    ' ==========================================
+    ' CHECK 2: Skip if events are disabled
+    ' (Redundant but safe)
+    ' ==========================================
+    If Not Application.EnableEvents Then
+        Exit Sub
+    End If
+    
+    ' ==========================================
+    ' YOUR EXISTING CODE BELOW
+    ' ==========================================
+    
+    ' Debug output (optional - remove for production)
+    Debug.Print ">>> Worksheet_Change fired on sheet '" & Me.Name & "'"
+    Debug.Print "   Target.Address: " & Target.Address
+    
+    ' ... rest of your existing Worksheet_Change code ...
+    
+    ' Example: Call SheetValidationTrigger if target is in validation range
+    ' On Error Resume Next
+    ' Call SheetValidationTrigger(Target)
+    ' On Error GoTo 0
+    
+End Sub
+
+
+' ======================================================
+' ALTERNATIVE: Wrapper function approach
+' ======================================================
+'
+' If you prefer, you can create a wrapper function that
+' checks the flag before calling your validation trigger:
+'
+' Public Sub SafeValidationTrigger(ByVal Target As Range)
+'     ' Don't trigger during bulk validation
+'     If AV_Core.BulkValidationInProgress Then Exit Sub
+'     
+'     ' Don't trigger if events disabled
+'     If Not Application.EnableEvents Then Exit Sub
+'     
+'     ' Call actual trigger
+'     Call SheetValidationTrigger(Target)
+' End Sub
+'
+' Then in Worksheet_Change:
+'     Call SafeValidationTrigger(Target)
+'
+' ======================================================
